@@ -6,7 +6,7 @@
   <img alt="opencode-conductor. Sessions that talk to each other, with one in charge." src="assets/banner-light.svg" width="100%">
 </picture>
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-0f172a?style=flat-square)](LICENSE) [![OpenCode 2.1+](https://img.shields.io/badge/opencode-2.1%2B-0f172a?style=flat-square)](https://opencode.ai) [![Node 18+](https://img.shields.io/badge/node-18%2B-0f172a?style=flat-square)](INSTALL.md) [![20 tests](https://img.shields.io/badge/tests-20%20green-0f172a?style=flat-square)](#tests) [![By Better ISMS](https://img.shields.io/badge/by-Better%20ISMS-0f172a?style=flat-square)](https://betterisms.co)
+[![License: MIT](https://img.shields.io/badge/license-MIT-0f172a?style=flat-square)](LICENSE) [![OpenCode 2.1+](https://img.shields.io/badge/opencode-2.1%2B-0f172a?style=flat-square)](https://opencode.ai) [![Node 18+](https://img.shields.io/badge/node-18%2B-0f172a?style=flat-square)](INSTALL.md) [![23 tests](https://img.shields.io/badge/tests-23%20green-0f172a?style=flat-square)](#tests) [![By Better ISMS](https://img.shields.io/badge/by-Better%20ISMS-0f172a?style=flat-square)](https://betterisms.co)
 
 Let your [OpenCode](https://opencode.ai) sessions talk to each other, and put one
 of them in charge.
@@ -31,8 +31,16 @@ This repo adds that missing layer:
   decisions that actually need a human.
 - **Governance by construction**: singleton lock (one conductor at a time, even
   across process crashes), kill switch, list-only-until-enabled mode, a closed
-  action set, and one hard rule: it never closes another session's window.
+  action set, one hard rule: it never closes another session's window.
   Closing a window is the human's call, one window at a time.
+- **A confined session profile** (`profile/`): run the conductor window from
+  it and its policies deny every shell command except the six lane scripts
+  invoked by their exact relative path (`node ../act.mjs *` and siblings),
+  redirection and shell metacharacters, every write-tool use except one
+  /tmp scratch filename shape for filing a report (the lane scripts write
+  their own state and log files; that is the tool working), web access,
+  subagents and all MCP servers. The reserved-action bans become
+  configuration, not instructions.
 
 ## Why
 
@@ -65,7 +73,8 @@ $ node send.mjs --to conductor-oc --file report.txt
  "title":"conductor-oc","delivery":"steer","queued":false}
 ```
 
-And the conductor's side: it verifies the evidence with git, files the report,
+And the conductor's side: it verifies the evidence itself (read-only PR and
+commit records through `verify.mjs` when run from `profile/`), files the report,
 relays decisions its human already made, and escalates only what needs one.
 
 ## Quickstart
@@ -148,25 +157,33 @@ full threat model is in DESIGN.md.
 **If a worker reads a poisoned file or web page, can its report steer the
 conductor?**
 
-Honestly: yes, it can. The conductor is a normal session with a shell, so a
-report that talks it into something can make it act, with the same powers any
-session on the machine already has. The messaging adds influence, not
-privilege. The report's text reaches the conductor model first, as untrusted
-content: the taught first step is to file it as data (`act.mjs report` takes
-a JSON file, never shell arguments, and validates field shapes, status enum
-and length caps) and treat instruction-shaped text as a finding, not a
-command. No code path maps report content to an action: a report can trigger
-a verification turn, never an action on its own word. And the privileged
-scripts offer no reserved-action verb to capture: `act.mjs` has no close,
-spend, external-send, credential, delete, merge or prod capability. The only
-thing a report's content can become in the scripts is a record: it is filed,
-logged, and never executed, resolved as a send target, or transmitted on its
-own word. What remains
-true and admitted: the conductor is a normal agent session, and the bans on
-its ordinary shell and tools are enforced by its instruction file, not by
-technical confinement. Running the conductor with a tool allowlist or sandbox
-would make that confinement technical, and that is future work (DESIGN.md,
-Not built).
+It can try to influence the model; whether that gets anywhere is bounded in
+code when you run the conductor from `profile/`. The profile's policies
+evaluate after every permission rule and cannot be lifted by the session
+itself: no shell except the six lane scripts invoked by their exact relative path,
+node ../<name>.mjs (plus the session self-rename; redirection and shell
+metacharacters are denied outright, so an allowed script cannot be turned
+into a file write or a compound command), write tools blocked everywhere
+except one /tmp scratch filename shape for filing a report (the lane
+scripts write their own state and log files; that is the tool working),
+no web access, no subagents, no MCP servers at all (mail above all). The report's text still reaches the conductor model
+first, as untrusted content: the taught first step is to file it as data
+(`act.mjs report` takes a JSON file, never shell arguments, and validates
+field shapes, status enum and length caps) and treat instruction-shaped text
+as a finding, not a command. No code path maps report content to an action:
+a report can trigger a verification turn, never an action on its own word.
+The only thing a report's content can become in the scripts is a record: it
+is filed, logged, and never executed, resolved as a send target, or
+transmitted on its own word.
+
+Two residuals stay open, stated plainly. First, the conductor can still send
+messages to your other local sessions through `send.mjs` (that is the tool's
+point), and what those messages do is bounded by each receiving session's
+own rules, not by the conductor's profile. Second, it can still read files
+and it can still talk to you in its window, so a crafted report can cost
+attention: a wrong escalation, a wasted verify turn. If you run the
+conductor outside `profile/`, none of the confinement above applies and the
+bans rest on its instruction file alone.
 
 **When the conductor acts on a worker's result, whose permissions does it
 use?**
@@ -174,9 +191,10 @@ use?**
 Its own. The privileged scripts never run worker code; what reaches them
 from a worker is either a raw message the conductor is taught to file as
 data (first answer above) or the validated report fields of
-`act.mjs report`. The conductor session's own
-ordinary tools are its own, bound by the same instruction file as any other
-session's (see above for the honest limit there).
+`act.mjs report`. In the profile, "its own" is a tiny set by policy: the
+lane scripts, read-only file tools, and the question tool it uses to
+escalate to you. It never borrows the worker's permissions and inherits
+nothing from it.
 
 **Does "go" make it permanently connected?**
 
@@ -192,8 +210,8 @@ is never blocked, or a stranded session would have nowhere to report). Code
 enforces the closed action set, the field validation, the self-send and
 60-second duplicate refusals, the fail-closed liveness, and the send log; the
 4-hour sweep pacing is instruction-file policy, auditable through the send
-log. The reserved-action bans on the conductor's ordinary tools are
-instruction-file policy, full stop (see the first answer).
+log. In the profile those bans are policy; a conductor started outside it
+carries instruction-file bans alone (see the first answer).
 
 ## Tests
 
@@ -201,10 +219,10 @@ instruction-file policy, full stop (see the first answer).
 node --test opencode-conductor.test.mjs
 ```
 
-20 tests: singleton lock and stale reclaim, fail-closed behavior when the service
+23 tests: singleton lock and stale reclaim, fail-closed behavior when the service
 is unreachable, holder healing, guard ordering (kill switch beats everything),
 close refusal, report validation, the escalate/decide/relay/inbox round trip,
-cursor paging, and the send guards.
+cursor paging, the send guards, and the verify.mjs argument wall.
 
 ## CREDITS
 

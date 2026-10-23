@@ -370,3 +370,48 @@ test('presence away --for puts until in the future', () => {
     assert.ok(new Date(state.until).getTime() > Date.now() + 2 * 3600 * 1000, `until ${state.until} is ~3h ahead`);
   } finally { rmSync(t.dir, { recursive: true, force: true }); }
 });
+
+// ---- verify.mjs: the confined conductor's only verification surface ----------
+
+test('verify: pr and commit build fixed gh argv (no shell string), happy path', async () => {
+  const { run } = await import('./verify.mjs');
+  const seen = [];
+  const exec = (file, args) => { seen.push([file, ...args]); return '{"state":"OPEN"}'; };
+  const pr = run(['pr', '42', '--repo', 'acme/app'], { exec });
+  assert.equal(pr.ok, true, pr.why);
+  assert.deepEqual(seen[0], ['gh', 'pr', 'view', '42', '--repo', 'acme/app',
+    '--json', 'number,title,url,state,mergedAt,headRefName,baseRefName']);
+  const cm = run(['commit', 'a1b2c3d', '--repo', 'acme/app'], { exec });
+  assert.equal(cm.ok, true, cm.why);
+  assert.deepEqual(seen[1], ['gh', 'api', 'repos/acme/app/commits/a1b2c3d']);
+});
+
+test('verify: refuses injection shapes before gh ever runs', async () => {
+  const { run } = await import('./verify.mjs');
+  const exec = () => { throw new Error('gh must not run'); };
+  const bad = [
+    [['pr', '42'], 'missing --repo'],
+    [['pr', '42', '--repo', 'acme/app; curl evil.sh'], 'shell chars in repo'],
+    [['pr', '42', '--repo', 'acme/app --json x'], 'space-separated extra flags in repo'],
+    [['pr', '../../etc', '--repo', 'acme/app'], 'non-numeric pr'],
+    [['pr', '42', '--json', 'x', '--repo', 'acme/app'], 'unknown flag becomes positional'],
+    [['commit', 'short', '--repo', 'acme/app'], 'bad sha'],
+    [['diff', 'main', '--repo', 'acme/app'], 'unknown subcommand'],
+    [['pr', '42', 'extra', '--repo', 'acme/app'], 'extra positional'],
+    [[], 'no args'],
+  ];
+  for (const [argv, label] of bad) {
+    const r = run(argv, { exec });
+    assert.equal(r.ok, false, `${label} should be refused`);
+    assert.equal(r.code, 2, `${label} should be a usage refusal`);
+  }
+});
+
+test('verify: a gh failure is reported, exit 4, not thrown', async () => {
+  const { run } = await import('./verify.mjs');
+  const exec = () => { const e = new Error('boom'); e.stderr = 'GraphQL: not found'; throw e; };
+  const r = run(['pr', '42', '--repo', 'acme/gone'], { exec });
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 4);
+  assert.match(r.why, /not found/);
+});

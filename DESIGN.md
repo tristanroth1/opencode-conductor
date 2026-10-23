@@ -75,6 +75,41 @@ is the protocol: addressing, reporting, authority, and safety.
    otherwise print the same 5 lines on screen, exactly as before. No conductor,
    no behavior change.
 
+10. **Confined session profile (v0.2).** The conductor window runs from
+    `profile/`, whose policies deny every shell command except the six lane
+    scripts invoked by their exact relative path, `node ../<name>.mjs *`
+    (the prefix is literal on purpose: a star before the script name would
+    also match `node -e 'code' ../act.mjs filler`, and node runs the -e
+    code while ignoring the script file), plus the session self-rename
+    (`opencode api patch /api/session/$OPENCODE_SESSION_ID` only; broad
+    `opencode api` stays out because a raw prompt POST would bypass
+    send.mjs guards); every write-tool use (edit, write, patch) except
+    one scratch filename shape, /tmp/conductor-report-*.json (the
+    report-file flow; no allowed script
+    invocation can match that name, and node invocations under /tmp, ~
+    paths, $ variables or NODE_OPTIONS are denied outright); webfetch and
+    websearch; subagents (they run with their own permissions, not a
+    subset of this profile); Code Mode; and all integrations: every MCP
+    server, skill and plugin. Policies rather than permission rules
+    because policies evaluate after every permission rule and saved
+    approval, and a deny cannot be lifted from below. Evidence
+    verification moved from raw git/gh to `verify.mjs`: two fixed read-only
+    gh checks, execFileSync with an argv array (no shell string), strict
+    argument shapes. Shell metacharacters (redirection, pipes, semicolons,
+    backgrounding, command substitution) are denied outright after the
+    allows, so an allowed script invocation cannot be turned into a file
+    write or a compound command; and `lock.mjs` is allowed only as
+    `acquire`, `status` or `release`, never `hold` (the holder takes an
+    arbitrary --state dir, which was a directory-deletion primitive).
+    Residuals, accepted and stated in the README: the conductor can still
+    message local sessions (the tool's purpose; each receiver enforces its
+    own rules), can still read files, can still talk to its human in its
+    window, the self-rename PATCH can edit its own session metadata only,
+    and close-candidate verification loses
+    local-git checks (unpushed commits, dirty worktree): PR and commit
+    records are what the profile can reach. A conductor started outside
+    `profile/` has none of this confinement.
+
 ## Threat model
 
 - **Trust boundary.** Same-machine, same-user processes. The OpenCode service
@@ -91,15 +126,16 @@ is the protocol: addressing, reporting, authority, and safety.
   instruction to follow. The defenses are layered, not absolute. The
   conductor's own scripts offer a closed action set (no spend, send,
   credential, delete, merge or prod capability exists in act.mjs to misuse)
-  and verify evidence independently before routing anything. But the conductor
-  is still a normal agent session with its ordinary shell and tools: the
+  and verify evidence independently before routing anything. A conductor started outside `profile/` is a
+  normal agent session with its ordinary shell and tools, and its
   reserved-action bans (no external sends, no spend, no credentials, no
-  deletes, no merges, no prod) are enforced by its instruction file, not by
-  technical confinement. A forged or crafted report can therefore cost a turn
-  and try to influence the model; what it cannot do is invoke a privileged
-  conductor capability, because none exists outside the closed set. Running
-  the conductor session with a tool allowlist or sandbox would make this
-  confinement technical; that is future work (see Not built).
+  deletes, no merges, no prod) rest on its instruction file alone; from
+  `profile/` they are technical (decision 10): shell, writes, web,
+  subagents and integrations are policy-denied. A forged or crafted report
+  can cost a turn and try to influence the model either way; what it cannot
+  do is invoke a privileged conductor capability, because none exists
+  outside the closed set. What stays open even in the profile:
+  local-session messaging, file reads, and in-window influence on the human.
 - **Spoofed conductor title.** A worker session could name itself
   `conductor-oc` and phish reports. Those reports are 5-line statuses; replies
   go to the id the conductor verified, not to a title. Revisit if OpenCode
@@ -114,9 +150,11 @@ is the protocol: addressing, reporting, authority, and safety.
 
 ## Not built (yet)
 
-- Technical confinement for the conductor session (tool allowlist or sandbox):
-  today the reserved-action bans live in its instruction file, not in a
-  sandbox boundary.
+- Confinement beyond configuration: the profile is enforced by OpenCode's
+  policy engine, which is configuration, not an OS boundary. An OS-level
+  sandbox for the conductor session would be the next step, and a conductor
+  started outside `profile/` is unconfined (the command file makes it say
+  so in its first line).
 
 - Closing tabs programmatically (with per-window human confirmation and
   revalidation) is deliberately out.

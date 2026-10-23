@@ -1,0 +1,91 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // The conductor session profile. Start the conductor window from this
+  // directory (cd profile && opencode) and every policy below applies to it.
+  //
+  // Why policies and not permissions: policies are evaluated AFTER all
+  // permission rules and saved approvals, and a deny turns any allow or ask
+  // into a hard block. Permission rules alone can be overridden by a global
+  // allow-all config; these cannot be overridden by anything below the
+  // system/Console level.
+  //
+  // This is the technical confinement described in README (Security FAQ):
+  // the reserved-action bans (no external send, no spend, no closes) stop
+  // living only in the conductor's instruction file. A talked-into conductor
+  // has no shell, no write-tool use outside one scratch filename
+  // shape, no web, no subagents, no MCP (mail above all). Its only
+  // world-actions are the lane scripts and one question tool.
+  "policies": [
+    // Shell: nothing at all, then exact lane-script invocations. The patterns
+    // are literal prefixes (`node ../act.mjs *`), deliberately NOT
+    // `node *act.mjs *`: a star before the script name would also match
+    // `node -e 'code' ../act.mjs filler`, and node runs the -e code while
+    // ignoring the script file. The conductor session runs from profile/, so
+    // the scripts are always ../<name>.mjs. `opencode api` is NOT broadly
+    // allowed: a raw POST /api/session/<id>/prompt would bypass send.mjs
+    // guards, and session DELETE is banned outright. Only the self-title
+    // PATCH matches.
+    { "action": "tool.use", "resource": "shell:*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:node ../act.mjs *", "effect": "allow" },
+    { "action": "tool.use", "resource": "shell:node ../send.mjs *", "effect": "allow" },
+    { "action": "tool.use", "resource": "shell:node ../peers.mjs *", "effect": "allow" },
+    { "action": "tool.use", "resource": "shell:node ../presence.mjs *", "effect": "allow" },
+    { "action": "tool.use", "resource": "shell:node ../lock.mjs acquire", "effect": "allow" },
+    { "action": "tool.use", "resource": "shell:node ../lock.mjs status", "effect": "allow" },
+    { "action": "tool.use", "resource": "shell:node ../lock.mjs release", "effect": "allow" },
+    { "action": "tool.use", "resource": "shell:node ../verify.mjs *", "effect": "allow" },
+    { "action": "tool.use", "resource": "shell:opencode api patch /api/session/$OPENCODE_SESSION_ID *", "effect": "allow" },
+
+    // Shell metacharacters denied outright (after the allows, so they win):
+    // redirection (> <) would let an allowed script write any file, pipes,
+    // semicolons, backgrounding and command substitution ($(...), backticks)
+    // would compose allowed commands with anything else. No legitimate
+    // invocation of the six scripts needs any of these.
+    { "action": "tool.use", "resource": "shell:*>*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:*<*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:*|*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:*;*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:*&*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:*`*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:*$(*", "effect": "deny" },
+
+    // Filesystem: the session's write tools (edit, write, patch) are blocked
+    // everywhere except the one scratch file the report flow needs (worker
+    // text becomes a JSON file, then act.mjs validates it; it never passes
+    // as shell arguments). The filename shape is chosen so no
+    // script allowlist pattern above can ever match it. Repos, configs,
+    // state dirs: read remains allowed, writes are blocked.
+    { "action": "tool.use", "resource": "edit:*", "effect": "deny" },
+    { "action": "tool.use", "resource": "edit:/tmp/conductor-report-*.json", "effect": "allow" },
+
+    // Node escape-hatch closes (denies go AFTER the allows: within one file
+    // the last matching statement wins). The session can write exactly one
+    // filename shape under /tmp, so any node invocation that could resolve
+    // into a writable file is denied: literal /tmp and /private/tmp (macOS
+    // symlink), any ~ path through tmp, and any $-variable path (raw command
+    // text is not expanded by the matcher, but the shell will expand it).
+    // NODE_OPTIONS is denied anywhere in a command: it can preload code into
+    // an otherwise allowed `node script` invocation.
+    { "action": "tool.use", "resource": "shell:node /tmp/*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:node /private/tmp/*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:node ~*/tmp/*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:node $*", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:*NODE_OPTIONS*", "effect": "deny" },
+
+    // No web ingress (webfetch/websearch are how poisoned pages reach a
+    // model), no subagents (they run with their own permissions, not a
+    // subset of this profile), no Code Mode.
+    { "action": "tool.use", "resource": "webfetch:*", "effect": "deny" },
+    { "action": "tool.use", "resource": "websearch:*", "effect": "deny" },
+    { "action": "tool.use", "resource": "subagent:*", "effect": "deny" },
+    { "action": "tool.use", "resource": "execute:*", "effect": "deny" },
+
+    // No integrations in the conductor session: every MCP server removed
+    // (mail above all), no skills, no plugins. The conductor talks to local
+    // OpenCode sessions and to the human in its window. That is the whole
+    // surface.
+    { "action": "integration.use", "resource": "mcp:*", "effect": "deny" },
+    { "action": "integration.use", "resource": "skill:*", "effect": "deny" },
+    { "action": "integration.use", "resource": "plugin:*", "effect": "deny" }
+  ]
+}
