@@ -1,5 +1,13 @@
 # opencode-conductor
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/banner-light.svg">
+  <img alt="opencode-conductor. Sessions that talk to each other, with one in charge." src="assets/banner-light.svg" width="100%">
+</picture>
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-0f172a?style=flat-square)](LICENSE) [![OpenCode 2.1+](https://img.shields.io/badge/opencode-2.1%2B-0f172a?style=flat-square)](https://opencode.ai) [![Node 18+](https://img.shields.io/badge/node-18%2B-0f172a?style=flat-square)](INSTALL.md) [![20 tests](https://img.shields.io/badge/tests-20%20green-0f172a?style=flat-square)](#tests) [![By Better ISMS](https://img.shields.io/badge/by-Better%20ISMS-0f172a?style=flat-square)](https://betterisms.co)
+
 Let your [OpenCode](https://opencode.ai) sessions talk to each other, and put one
 of them in charge.
 
@@ -34,6 +42,31 @@ others. The conductor pattern removes that: sessions report to one of their own,
 that one verifies and routes, and only real decisions reach you.
 
 It was built and is used daily to run a real agent fleet (see CREDITS).
+
+## What it looks like
+
+Read-only inventory, one command:
+
+```text
+$ node peers.mjs list
+OpenCode sessions: 50 total, 4 running
+ses_e9a2fc3cdffeVtkstDEiNiQe0d  running   plugin oauth fix        /home/dev/project
+ses_e9a1b770effeJspS4xdROmNPcp  running   evidence night          /home/dev/ops
+ses_e9c284203ffeZY1nY37fsb0Jrg  running   docs site build         /home/dev/site
+ses_e9a048c09ffee6pf5yw7zXamDp  running   refactor lane           /home/dev/app  <== me
+```
+
+A worker sending its 5-line report to the conductor (busy targets take it at
+their next turn boundary, idle ones start a turn, offline ones queue durably):
+
+```text
+$ node send.mjs --to conductor-oc --file report.txt
+{"from":"ses_e9a048c09ffee6pf5yw7zXamDp","to":"ses_e99f1b6a3ffemIUV5E2CoupC06",
+ "title":"conductor-oc","delivery":"steer","queued":false}
+```
+
+And the conductor's side: it verifies the evidence with git, files the report,
+relays decisions its human already made, and escalates only what needs one.
 
 ## Quickstart
 

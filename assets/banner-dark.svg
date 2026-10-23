@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="580" viewBox="0 0 1280 580" role="img">
+  <rect width="1280" height="580" fill="#0f172a"/>
+  <text x="80" y="196" font-family="ui-sans-serif, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="68" font-weight="700" fill="#e8edf5">opencode-conductor</text>
+  <text x="82" y="248" font-family="ui-sans-serif, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="24" fill="#8b96a8">Sessions that talk to each other, with one in charge.</text>
+  <rect x="80" y="306" width="740" height="64" rx="32" fill="#151b25"/>
+  <text x="450" y="346" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="24" fill="#e8edf5">workers report up &#183; the conductor verifies &#183; you decide</text>
+  <line x1="880" y1="290" x2="1080" y2="180" stroke="#8b96a8" stroke-width="2"/>
+  <line x1="880" y1="290" x2="1080" y2="400" stroke="#8b96a8" stroke-width="2"/>
+  <circle cx="947" cy="247" r="5" fill="#e8edf5"/>
+  <circle cx="947" cy="333" r="5" fill="#e8edf5"/>
+  <circle cx="880" cy="290" r="44" fill="#8b96a8"/>
+  <text x="880" y="298" text-anchor="middle" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="22" font-weight="700" fill="#0f172a">oc</text>
+  <text x="880" y="362" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="17" fill="#e8edf5">conductor</text>
+  <circle cx="1080" cy="180" r="30" fill="#0f172a" stroke="#8b96a8" stroke-width="2"/>
+  <text x="1080" y="187" text-anchor="middle" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="16" fill="#e8edf5">w1</text>
+  <text x="1080" y="238" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="17" fill="#8b96a8">worker</text>
+  <circle cx="1080" cy="400" r="30" fill="#0f172a" stroke="#8b96a8" stroke-width="2"/>
+  <text x="1080" y="407" text-anchor="middle" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="16" fill="#e8edf5">w2</text>
+  <text x="1080" y="458" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Helvetica Neue', Arial, sans-serif" font-size="17" fill="#8b96a8">worker</text>
+</svg>
