@@ -148,8 +148,10 @@ full threat model is in DESIGN.md.
 **If a worker reads a poisoned file or web page, can its report steer the
 conductor?**
 
-It can try to influence the model; what that influence can cause is bounded,
-in layers. The report's text reaches the conductor model first, as untrusted
+Honestly: yes, it can. The conductor is a normal session with a shell, so a
+report that talks it into something can make it act, with the same powers any
+session on the machine already has. The messaging adds influence, not
+privilege. The report's text reaches the conductor model first, as untrusted
 content: the taught first step is to file it as data (`act.mjs report` takes
 a JSON file, never shell arguments, and validates field shapes, status enum
 and length caps) and treat instruction-shaped text as a finding, not a
