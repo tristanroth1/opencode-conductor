@@ -112,9 +112,11 @@ conductor live, nothing changes.
 
 ## Safety model
 
-- **Reports are data, never instructions.** Worker text never passes through
-  shell arguments; reports enter as a JSON file and are validated (field shapes,
-  status enum, length caps). Anything instruction-shaped in a report is a
+- **Reports are data, never instructions.** The report text reaches the
+  conductor as prompt content first, untrusted like any inbound message; the
+  taught first step is to file it as data: `act.mjs report` takes a JSON file
+  (never shell arguments) and validates it (field shapes, status enum, length
+  caps). Anything instruction-shaped in a report is a
   finding, not a command.
 - **The action path is closed.** `act.mjs` offers exactly: report, topic,
   escalate, inbox, decide, relay, flag, unblock, go, pause. Everything else is
@@ -132,9 +134,64 @@ conductor live, nothing changes.
   human closes the tab.
 - **Bounded blast radius.** Status sweeps are paced (once per 4 hours per
   session, auditable through the send log), the send script refuses immediate
-  duplicates and self-sends, and all shared logs carry ids and topics only.
+  duplicates and self-sends, and the send log carries metadata only, never
+  message text; the action log records the operator-passed fields (a reason,
+  a title). Every log is a local file.
 
 DESIGN.md has the full decision list and threat model.
+
+## Security FAQ
+
+The short answers to the three questions security reviewers ask first. The
+full threat model is in DESIGN.md.
+
+**If a worker reads a poisoned file or web page, can its report steer the
+conductor?**
+
+It can try to influence the model; what that influence can cause is bounded,
+in layers. The report's text reaches the conductor model first, as untrusted
+content: the taught first step is to file it as data (`act.mjs report` takes
+a JSON file, never shell arguments, and validates field shapes, status enum
+and length caps) and treat instruction-shaped text as a finding, not a
+command. No code path maps report content to an action: a report can trigger
+a verification turn, never an action on its own word. And the privileged
+scripts offer no reserved-action verb to capture: `act.mjs` has no close,
+spend, external-send, credential, delete, merge or prod capability. The only
+thing a report's content can become in the scripts is a record: it is filed,
+logged, and never executed, resolved as a send target, or transmitted on its
+own word. What remains
+true and admitted: the conductor is a normal agent session, and the bans on
+its ordinary shell and tools are enforced by its instruction file, not by
+technical confinement. Running the conductor with a tool allowlist or sandbox
+would make that confinement technical, and that is future work (DESIGN.md,
+Not built).
+
+**When the conductor acts on a worker's result, whose permissions does it
+use?**
+
+Its own. The privileged scripts never run worker code; what reaches them
+from a worker is either a raw message the conductor is taught to file as
+data (first answer above) or the validated report fields of
+`act.mjs report`. The conductor session's own
+ordinary tools are its own, bound by the same instruction file as any other
+session's (see above for the honest limit there).
+
+**Does "go" make it permanently connected?**
+
+Go is persistent state, not a connection: it removes the pause file, and it
+stays removed until you run `pause`, which re-creates it. The `DISABLED` kill
+switch does not restore the pause file; it disables every privileged action
+and the conductor's own sends on top of whatever the pause state is. After
+go, the conductor session can send whenever it
+next acts; nothing runs in the background that was not already running. Both
+`pause` and the kill switch stop the conductor's own sends and every
+privileged action; reports in from workers still arrive by design (that path
+is never blocked, or a stranded session would have nowhere to report). Code
+enforces the closed action set, the field validation, the self-send and
+60-second duplicate refusals, the fail-closed liveness, and the send log; the
+4-hour sweep pacing is instruction-file policy, auditable through the send
+log. The reserved-action bans on the conductor's ordinary tools are
+instruction-file policy, full stop (see the first answer).
 
 ## Tests
 

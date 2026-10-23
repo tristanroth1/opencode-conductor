@@ -5,8 +5,9 @@
 //   2. refuses while the pause file exists (list-only mode), except `go`,
 //   3. refuses unless the caller's session (OPENCODE_SESSION_ID) holds the
 //      conductor lock, so only the conductor window can act,
-//   4. logs to actions.jsonl (ids and topics only; reports with customer names
-//      stay in the local state dir, never synced).
+//   4. logs to actions.jsonl (metadata plus the operator-passed fields such as
+//      a reason or title; sends never log message text; reports with customer
+//      names stay in the local state dir, never synced).
 // There is NO close capability and never will be one in this file: closing
 // another session's window is ask-first (the human decides per window, never
 // the agent; DESIGN.md). `close` is refused unconditionally.

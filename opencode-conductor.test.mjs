@@ -20,7 +20,11 @@ function tmpState(name) {
   const dir = mkdtempSync(join(tmpdir(), `oc-conductor-${name}-`));
   const logs = join(dir, 'logs');
   mkdirSync(logs, { recursive: true });
-  return { dir, logs, env: { ...process.env, OPENCODE_CONDUCTOR_STATE: join(dir, 'state'), OPENCODE_CONDUCTOR_LOGS: logs } };
+  // NO_HOLDER: acquire() must never spawn a real detached holder in tests. A
+  // real holder asks the live service about fake session ids; when the service
+  // answers 'inactive' it deletes the lock and the reentrant test fails. The
+  // holder's logic is covered directly by the holdTick test below.
+  return { dir, logs, env: { ...process.env, OPENCODE_CONDUCTOR_STATE: join(dir, 'state'), OPENCODE_CONDUCTOR_LOGS: logs, OPENCODE_CONDUCTOR_NO_HOLDER: '1' } };
 }
 
 function holdLock(t, sid) {

@@ -51,11 +51,14 @@ is the protocol: addressing, reporting, authority, and safety.
    the human closes the tab (or a script the human trusts does). Closing a
    window kills a human's view of in-flight work; that decision stays human.
 
-7. **Reports are data.** A report enters as a JSON file (never as shell
-   arguments), is validated (sender session id shape, topic charset, status
-   enum, length caps), and the shared action log records ids and topics only.
-   The full validated fields go to the conductor's local report file (state
-   dir), which is meant to stay on that machine. A report can trigger
+7. **Reports are data.** The report's text reaches the conductor model first,
+   as untrusted prompt content (see Threat model); the taught first step is to
+   file it as data: `act.mjs report` takes a JSON file (never shell
+   arguments) and validates it (sender session id shape, topic charset,
+   status enum, length caps). The full validated fields go to the conductor's
+   local report file (state dir), which is meant to stay on that machine; the
+   action log records the operator-passed fields of every action, and the
+   send log records metadata only. A report can trigger
    verification, never an action on its own word. The conductor relays only
    decisions the human typed in the conductor window.
 
